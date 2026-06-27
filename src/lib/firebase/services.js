@@ -216,12 +216,11 @@ export const applicationService = {
     }
   },
 
-  async updateStatus(applicationId, status) {
+  async updateStatus(applicationId, status, commission = null) {
     try {
-      await updateDoc(doc(db, 'applications', applicationId), {
-        status,
-        updatedAt: serverTimestamp(),
-      });
+      const updateData = { status, updatedAt: serverTimestamp() };
+      if (commission !== null) updateData.commission = commission;
+      await updateDoc(doc(db, 'applications', applicationId), updateData);
     } catch (err) {
       console.error('applicationService.updateStatus error:', err);
       throw new Error(`Failed to update application: ${err.message}`);

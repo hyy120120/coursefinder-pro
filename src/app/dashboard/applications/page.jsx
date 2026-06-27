@@ -16,7 +16,13 @@ export default function ApplicationsPage() {
 
   async function handleStatusChange(appId, newStatus) {
     try {
-      await updateStatus(appId, newStatus);
+      let commission = null;
+      if (newStatus === 'enrolled') {
+        const input = window.prompt('Enter commission amount (₹):');
+        if (input === null) return; // cancelled
+        commission = parseFloat(input) || 0;
+      }
+      await updateStatus(appId, newStatus, commission);
     } catch (err) {
       console.error('Status update error:', err);
     }

@@ -13,10 +13,12 @@ export default function CommissionsPage() {
 
   // Calculate commission data
   const enrolledApps = applications.filter(a => a.status === 'enrolled');
-  const totalCommissionEarned = enrolledApps.length * 2500; // $2500 per enrollment
+  const totalCommissionEarned = enrolledApps.reduce((sum, a) => sum + (a.commission || 0), 0);
   const platformShare = totalCommissionEarned * COMMISSION_RATE;
   const agentShare = totalCommissionEarned * (1 - COMMISSION_RATE);
-  const pendingCommission = applications.filter(a => a.status === 'offer').length * 2500;
+  const pendingCommission = applications
+    .filter(a => a.status === 'offer')
+    .reduce((sum, a) => sum + (a.commission || 0), 0);
 
   // Monthly commission trend
   const commissionTrend = [
@@ -31,13 +33,13 @@ export default function CommissionsPage() {
   // Detailed commission breakdown
   const commissionBreakdown = enrolledApps.map((app, idx) => ({
     id: app.id,
-    studentId: `Student #${app.id?.slice(-4)}`,
+    studentId: `Student #${app.studentId?.slice(-4) || app.id?.slice(-4)}`,
     courseId: `Course #${app.courseId?.slice(-4)}`,
-    grossCommission: 2500,
-    platformFee: 750,
-    yourShare: 1750,
+    grossCommission: app.commission || 0,
+    platformFee: Math.round((app.commission || 0) * COMMISSION_RATE),
+    yourShare: Math.round((app.commission || 0) * (1 - COMMISSION_RATE)),
     status: 'paid',
-    dateEnrolled: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+    dateEnrolled: app.updatedAt?.toDate?.().toLocaleDateString() || '—',
     invoiceId: `INV-${1001 + idx}`,
   }));
 
