@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import { Users, BookMarked, TrendingUp, DollarSign, Target, Zap, AlertCircle, CheckCircle } from 'lucide-react';
 import { formatCurrency, formatDate, timeAgo } from '@/lib/utils';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 const COLORS = ['#0284c7', '#38bdf8', '#7dd3fc', '#bae6fd', '#e0f2fe'];
 
@@ -38,23 +38,37 @@ export default function DashboardPage() {
     { name: 'Enrolled', value: applications.filter(a => a.status === 'enrolled').length, color: '#06b6d4' },
   ].filter(s => s.value > 0);
 
-  // Monthly trend (advanced)
-  const monthlyTrend = [
-    { month: 'Jan', students: 5, apps: 3, enrolled: 1 },
-    { month: 'Feb', students: 8, apps: 5, enrolled: 2 },
-    { month: 'Mar', students: 12, apps: 8, enrolled: 3 },
-    { month: 'Apr', students: 15, apps: 10, enrolled: 5 },
-    { month: 'May', students: 18, apps: 12, enrolled: 7 },
-    { month: 'Jun', students: 22, apps: 15, enrolled: 9 },
-  ];
+  // Monthly trend — real Firebase data
+  const monthlyTrend = useMemo(() => {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months.map((month, idx) => ({
+      month,
+      students: students.filter(s => {
+        const d = s.createdAt?.toDate?.();
+        return d && d.getMonth() === idx;
+      }).length,
+      apps: applications.filter(a => {
+        const d = a.createdAt?.toDate?.();
+        return d && d.getMonth() === idx;
+      }).length,
+      enrolled: applications.filter(a => {
+        const d = a.createdAt?.toDate?.();
+        return d && d.getMonth() === idx && a.status === 'enrolled';
+      }).length,
+    })).filter(m => m.students > 0 || m.apps > 0);
+  }, [students, applications]);
 
-  // Country distribution
-  const countryData = [
-    { name: 'Canada', value: 8, color: '#ef4444' },
-    { name: 'Australia', value: 7, color: '#f97316' },
-    { name: 'USA', value: 4, color: '#eab308' },
-    { name: 'UK', value: 3, color: '#22c55e' },
-  ];
+  // Country distribution — real Firebase data
+  const countryData = useMemo(() => {
+    const counts = {};
+    students.forEach(s => {
+      if (s.country) counts[s.country] = (counts[s.country] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  }, [students]);
 
   // Performance metrics
   const stats = [
@@ -93,9 +107,9 @@ export default function DashboardPage() {
   ];
 
   const alerts = [
-    { type: 'success', message: '12 students enrolled this month', icon: CheckCircle },
-    { type: 'warning', message: '5 applications pending review', icon: AlertCircle },
-    { type: 'info', message: 'Commission payout scheduled for 30th', icon: Zap },
+    { type: 'success', message: `${enrolledCount} students enrolled so far`, icon: CheckCircle },
+    { type: 'warning', message: `${applications.filter(a => a.status === 'shortlisting').length} applications pending review`, icon: AlertCircle },
+    { type: 'info', message: `${offersCount} offers received`, icon: Zap },
   ];
 
   return (
@@ -109,10 +123,10 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="text-right">
-          <p className="text-sm text-slate-500 mb-2">Agency Performance</p>
+          <p className="text-sm text-slate-500 mb-2">Conversion Rate</p>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-green-600">↑ 23%</span>
-            <span className="text-xs text-slate-500">vs last month</span>
+            <span className="text-3xl font-bold text-green-600">{conversionRate}%</span>
+            <span className="text-xs text-slate-500">offers + enrolled</span>
           </div>
         </div>
       </div>
