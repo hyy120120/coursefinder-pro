@@ -1,4 +1,4 @@
-import { generateSOP } from '@/lib/ai/gemini';
+import { generateSOP } from '@/lib/ai/groq';
 
 export async function POST(request) {
   try {

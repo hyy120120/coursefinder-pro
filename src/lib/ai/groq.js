@@ -1,12 +1,13 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+// Groq AI Integration (Free, Unlimited)
+// Get key from: https://console.groq.com
 
-const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+const GROQ_API_KEY = process.env.NEXT_PUBLIC_GROQ_API_KEY;
+const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
+const MODEL = "llama-3.3-70b-versatile"; // Best free model
 
-if (!GEMINI_API_KEY) {
-  console.warn("⚠️ GEMINI_API_KEY not configured");
+if (!GROQ_API_KEY) {
+  console.warn('⚠️ GROQ_API_KEY not configured');
 }
-
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 export const SYSTEM_PROMPTS = {
   courseAdvisor: `You are an expert study abroad counselor with deep knowledge of universities, courses, and admission requirements worldwide. 
@@ -40,48 +41,61 @@ Provide country-specific visa guidance:
 5. Common rejection reasons to avoid
 6. Post-study work visa options and salary thresholds
 Be thorough, accurate, and use actual 2024 requirements.`,
-
-  universityGuide: `You are an expert on universities worldwide.
-Help students understand university rankings, programs, campus life, and post-graduation opportunities.
-Provide honest assessments of institutions.
-Compare universities based on student goals.
-Discuss alumni networks, job placement, and career outcomes.`,
 };
 
-async function callGeminiAPI(systemPrompt, userMessage, maxTokens = 1500) {
+// Call Groq API
+async function callGroqAPI(systemPrompt, userMessage, maxTokens = 1500) {
   try {
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY not configured. Add it to .env.local or environment variables.");
+    if (!GROQ_API_KEY) {
+      throw new Error('GROQ_API_KEY not configured. Add it to .env.local');
     }
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      systemInstruction: systemPrompt,
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: maxTokens,
+    const response = await fetch(`${GROQ_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt,
+          },
+          {
+            role: 'user',
+            content: userMessage,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: maxTokens,
+      }),
     });
 
-    const result = await model.generateContent(userMessage);
-    const response = result.response;
-    return response.text();
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || `API error: ${response.status}`);
+    }
+
+    return data.choices[0].message.content;
   } catch (err) {
-    console.error("Gemini API error:", err.message);
+    console.error('Groq API error:', err.message);
     throw new Error(`AI Service Error: ${err.message}`);
   }
 }
 
-// AI Functions - Course Matching
+// Course Matching
 export async function matchCourses(studentProfile) {
   const prompt = `Given this student profile, recommend TOP 5 courses:
-Name: ${studentProfile.name || "Student"}
-CGPA: ${studentProfile.cgpa || "Not provided"}
-IELTS/TOEFL: ${studentProfile.englishScore || "Not taken"}
-GRE/GMAT: ${studentProfile.standardizedTest || "Not taken"}
-Budget: ${studentProfile.budget || "Flexible"}
-Preferred Countries: ${studentProfile.countries || "Any"}
-Field of Study: ${studentProfile.field || "Any"}
+Name: ${studentProfile.name || 'Student'}
+CGPA: ${studentProfile.cgpa || 'Not provided'}
+IELTS/TOEFL: ${studentProfile.englishScore || 'Not taken'}
+GRE/GMAT: ${studentProfile.standardizedTest || 'Not taken'}
+Budget: ${studentProfile.budget || 'Flexible'}
+Preferred Countries: ${studentProfile.countries || 'Any'}
+Field of Study: ${studentProfile.field || 'Any'}
 
 For each course recommend:
 1. University name & country
@@ -93,29 +107,29 @@ For each course recommend:
 
 Format as clear numbered list.`;
 
-  return callGeminiAPI(SYSTEM_PROMPTS.courseAdvisor, prompt, 1500);
+  return callGroqAPI(SYSTEM_PROMPTS.courseAdvisor, prompt, 1500);
 }
 
-// AI Functions - Eligibility Check
+// Eligibility Check
 export async function checkEligibility(studentProfile, courseDetails) {
   const prompt = `Check eligibility for this student to apply:
 
 STUDENT PROFILE:
-- Name: ${studentProfile.name || "Student"}
-- CGPA: ${studentProfile.cgpa || "N/A"}
-- IELTS: ${studentProfile.ielts || "Not taken"}
-- TOEFL: ${studentProfile.toefl || "Not taken"}
-- GRE: ${studentProfile.gre || "Not taken"}
-- GMAT: ${studentProfile.gmat || "Not taken"}
-- Work Experience: ${studentProfile.experience || "Fresher"}
+- Name: ${studentProfile.name || 'Student'}
+- CGPA: ${studentProfile.cgpa || 'N/A'}
+- IELTS: ${studentProfile.ielts || 'Not taken'}
+- TOEFL: ${studentProfile.toefl || 'Not taken'}
+- GRE: ${studentProfile.gre || 'Not taken'}
+- GMAT: ${studentProfile.gmat || 'Not taken'}
+- Work Experience: ${studentProfile.experience || 'Fresher'}
 
 COURSE REQUIREMENTS:
-- University: ${courseDetails.university || "N/A"}
-- Course: ${courseDetails.course || "N/A"}
-- Country: ${courseDetails.country || "N/A"}
-- Min GPA: ${courseDetails.minGpa || "Not specified"}
-- English Test: ${courseDetails.englishTest || "IELTS"}
-- Entrance Exam: ${courseDetails.entranceExam || "None"}
+- University: ${courseDetails.university || 'N/A'}
+- Course: ${courseDetails.course || 'N/A'}
+- Country: ${courseDetails.country || 'N/A'}
+- Min GPA: ${courseDetails.minGpa || 'Not specified'}
+- English Test: ${courseDetails.englishTest || 'IELTS'}
+- Entrance Exam: ${courseDetails.entranceExam || 'None'}
 
 Provide:
 1. **Eligibility Status** (Strong/Moderate/Weak with %)
@@ -127,22 +141,22 @@ Provide:
 
 Be honest but encouraging.`;
 
-  return callGeminiAPI(SYSTEM_PROMPTS.eligibilityChecker, prompt, 1500);
+  return callGroqAPI(SYSTEM_PROMPTS.eligibilityChecker, prompt, 1500);
 }
 
-// AI Functions - SOP Generation
+// SOP Generation
 export async function generateSOP(studentProfile) {
   const prompt = `Write a compelling Statement of Purpose (SOP) for this student:
 
-Student: ${studentProfile.name || "Applicant"}
-Education: ${studentProfile.education || "Bachelors"}
-CGPA: ${studentProfile.cgpa || "3.5"}
-Background: ${studentProfile.background || "Not specified"}
-Target Program: ${studentProfile.targetProgram || "Masters"}
-Target University: ${studentProfile.targetUniversity || "Top university"}
-Career Goal: ${studentProfile.careerGoal || "Not specified"}
-Unique Strengths: ${studentProfile.strengths || "To be mentioned"}
-Challenges Overcome: ${studentProfile.challenges || "None"}
+Student: ${studentProfile.name || 'Applicant'}
+Education: ${studentProfile.education || 'Bachelors'}
+CGPA: ${studentProfile.cgpa || '3.5'}
+Background: ${studentProfile.background || 'Not specified'}
+Target Program: ${studentProfile.targetProgram || 'Masters'}
+Target University: ${studentProfile.targetUniversity || 'Top university'}
+Career Goal: ${studentProfile.careerGoal || 'Not specified'}
+Unique Strengths: ${studentProfile.strengths || 'To be mentioned'}
+Challenges Overcome: ${studentProfile.challenges || 'None'}
 
 Write a 300-350 word SOP that:
 1. Opens with a compelling hook/story
@@ -157,10 +171,10 @@ Write a 300-350 word SOP that:
 Make it authentic, specific, impactful, and unique.
 Avoid clichés and generic statements.`;
 
-  return callGeminiAPI(SYSTEM_PROMPTS.sopWriter, prompt, 1200);
+  return callGroqAPI(SYSTEM_PROMPTS.sopWriter, prompt, 1200);
 }
 
-// AI Functions - Visa Guidance
+// Visa Guidance
 export async function getVisaGuidance(country) {
   const prompt = `Provide comprehensive visa guidance for studying in ${country} (2024):
 
@@ -203,31 +217,29 @@ export async function getVisaGuidance(country) {
 
 Be specific with current 2024 requirements and actual amounts.`;
 
-  return callGeminiAPI(SYSTEM_PROMPTS.visaAdvisor, prompt, 2000);
+  return callGroqAPI(SYSTEM_PROMPTS.visaAdvisor, prompt, 2000);
 }
 
-// AI Functions - Chat (Conversational)
-export async function streamChat(messages, context = "general") {
+// Chat (Conversational)
+export async function streamChat(messages, context = 'general') {
   const contextMap = {
     general: SYSTEM_PROMPTS.courseAdvisor,
     sop: SYSTEM_PROMPTS.sopWriter,
     visa: SYSTEM_PROMPTS.visaAdvisor,
     eligibility: SYSTEM_PROMPTS.eligibilityChecker,
-    university: SYSTEM_PROMPTS.universityGuide,
   };
 
   const systemPrompt = contextMap[context] || contextMap.general;
-
-  // Get last user message
   const lastMessage = messages[messages.length - 1];
-  if (!lastMessage || lastMessage.role !== "user") {
-    throw new Error("Last message must be from user");
+
+  if (!lastMessage || lastMessage.role !== 'user') {
+    throw new Error('Last message must be from user');
   }
 
-  return callGeminiAPI(systemPrompt, lastMessage.content, 2000);
+  return callGroqAPI(systemPrompt, lastMessage.content, 2000);
 }
 
-// AI Functions - Student Profile Analysis
+// Student Profile Analysis
 export async function analyzeStudentProfile(studentProfile) {
   const prompt = `Provide comprehensive analysis of this student's study abroad readiness:
 
@@ -248,10 +260,10 @@ Include:
 Be thorough, honest, and actionable.
 Give specific numbers and timelines.`;
 
-  return callGeminiAPI(SYSTEM_PROMPTS.courseAdvisor, prompt, 2000);
+  return callGroqAPI(SYSTEM_PROMPTS.courseAdvisor, prompt, 2000);
 }
 
-// AI Functions - Document Checklist
+// Document Checklist
 export async function generateDocumentChecklist(country, courseLevel) {
   const prompt = `Create detailed document checklist for ${courseLevel} in ${country}:
 
@@ -262,7 +274,7 @@ Organize documents by category:
 - Who issues them
 - Processing time
 
-**English Proficiency** 
+**English Proficiency**
 - Which tests are accepted
 - Minimum scores needed
 - Where to register
@@ -304,7 +316,7 @@ Also provide:
 
 Make it practical and comprehensive.`;
 
-  return callGeminiAPI(SYSTEM_PROMPTS.courseAdvisor, prompt, 2000);
+  return callGroqAPI(SYSTEM_PROMPTS.courseAdvisor, prompt, 2000);
 }
 
 export default {

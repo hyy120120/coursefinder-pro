@@ -1,4 +1,4 @@
-import { getVisaGuidance } from '@/lib/ai/gemini';
+import { getVisaGuidance } from '@/lib/ai/groq';
 
 export async function POST(request) {
   try {

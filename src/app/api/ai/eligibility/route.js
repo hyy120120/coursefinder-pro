@@ -1,4 +1,4 @@
-import { checkEligibility } from '@/lib/ai/gemini';
+import { checkEligibility } from '@/lib/ai/groq';
 
 export async function POST(request) {
   try {

@@ -1,4 +1,4 @@
-import { streamChat } from '@/lib/ai/gemini';
+import { streamChat } from '@/lib/ai/groq';
 
 export async function POST(request) {
   try {

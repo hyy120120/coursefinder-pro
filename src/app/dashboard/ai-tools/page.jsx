@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageCircle, FileText, CheckCircle, Globe, Zap, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -14,8 +13,6 @@ const TAB_OPTIONS = [
 
 export default function AIToolsPage() {
   const [activeTab, setActiveTab] = useState('chat');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState('');
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -40,51 +37,34 @@ export default function AIToolsPage() {
 
       {/* Tabs Container */}
       <div className="card">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          {/* Tab List */}
-          <TabsList className="w-full grid grid-cols-2 md:grid-cols-4 gap-2 p-4 border-b border-slate-200 bg-transparent">
-            {TAB_OPTIONS.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center justify-center md:justify-start gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-brand-600 text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                </button>
-              );
-            })}
-          </TabsList>
+        {/* Tab Navigation */}
+        <div className="flex border-b border-slate-200 overflow-x-auto bg-white">
+          {TAB_OPTIONS.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center justify-center md:justify-start gap-2 px-6 py-4 font-medium transition-all whitespace-nowrap border-b-2 ${
+                  activeTab === tab.id
+                    ? 'border-brand-600 text-brand-600 bg-brand-50'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
 
-          {/* Tab Contents */}
-          <div className="p-6">
-            {/* Chat Tab */}
-            <TabsContent value="chat" className="space-y-4">
-              <AIChat />
-            </TabsContent>
-
-            {/* SOP Generator Tab */}
-            <TabsContent value="sop" className="space-y-4">
-              <SOPGenerator />
-            </TabsContent>
-
-            {/* Eligibility Check Tab */}
-            <TabsContent value="eligibility" className="space-y-4">
-              <EligibilityChecker />
-            </TabsContent>
-
-            {/* Visa Guidance Tab */}
-            <TabsContent value="visa" className="space-y-4">
-              <VisaGuidance />
-            </TabsContent>
-          </div>
-        </Tabs>
+        {/* Tab Content - CONDITIONAL RENDER */}
+        <div className="p-6">
+          {activeTab === 'chat' && <AIChat />}
+          {activeTab === 'sop' && <SOPGenerator />}
+          {activeTab === 'eligibility' && <EligibilityChecker />}
+          {activeTab === 'visa' && <VisaGuidance />}
+        </div>
       </div>
     </div>
   );
