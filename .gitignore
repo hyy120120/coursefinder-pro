@@ -1,0 +1,14 @@
+node_modules/
+.pnp
+.pnp.js
+.next/
+out/
+build/
+dist/
+.DS_Store
+*.pem
+.env*.local
+.vercel
+.firebase/
+firebase-debug.log
+.npm/
