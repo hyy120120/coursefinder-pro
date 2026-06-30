@@ -5,6 +5,13 @@ import '@/styles/globals.css';
 export const metadata = {
   title: 'CourseFinder Pro – B2B Study Abroad Platform',
   description: 'Professional study abroad recruitment platform for education agents',
+  manifest: '/manifest.json',
+  themeColor: '#185fa5',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'CourseFinder Pro',
+  },
 };
 
 export default function RootLayout({ children }) {

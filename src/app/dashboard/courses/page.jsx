@@ -15,7 +15,7 @@ export default function CoursesPage() {
       {/* Header */}
       <div>
         <h1 className="page-title">Course Database</h1>
-        <p className="page-subtitle">Browse and match 100,000+ courses worldwide</p>
+        <p className="page-subtitle">Browse and match courses worldwide</p>
       </div>
 
       {/* Filters */}
