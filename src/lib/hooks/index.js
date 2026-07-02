@@ -107,8 +107,8 @@ export function useApplications() {
     [profile?.agencyId]
   );
 
-  const updateStatus = useCallback(async (id, status) => {
-    await applicationService.updateStatus(id, status);
+  const updateStatus = useCallback(async (id, status, commission = null) => {
+    await applicationService.updateStatus(id, status, commission);
   }, []);
 
   return { applications, loading, createApplication, updateStatus };

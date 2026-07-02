@@ -18,8 +18,20 @@ export function formatCurrency(amount, currency = 'INR') {
 }
 
 export function formatDate(date, format = 'MMM dd, yyyy') {
-  if (!date) return '';
-  const d = date instanceof Date ? date : new Date(date);
+  if (!date) return 'Just now';
+
+  // Handle Firestore Timestamp object
+  let d;
+  if (typeof date?.toDate === 'function') {
+    d = date.toDate();
+  } else if (date instanceof Date) {
+    d = date;
+  } else {
+    d = new Date(date);
+  }
+
+  if (isNaN(d.getTime())) return 'Just now';
+
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const d_ = String(d.getDate()).padStart(2, '0');
   const m = months[d.getMonth()];

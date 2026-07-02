@@ -1,6 +1,7 @@
 'use client';
 
 import { useApplications } from '@/lib/hooks';
+import { applicationService } from '@/lib/firebase/services';
 import { STATUS_CONFIG } from '@/lib/utils';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -27,6 +28,40 @@ export default function PipelinePage() {
     return acc;
   }, {});
 
+  // Bottleneck = stage with most apps (excluding enrolled, since that's the goal)
+  const bottleneckStage = PIPELINE_STAGES
+    .filter(s => s !== 'enrolled' && s !== 'visa')
+    .reduce((max, stage) =>
+      applicationsByStage[stage].length > (applicationsByStage[max]?.length || 0) ? stage : max
+    , null);
+
+  // Most active stage = stage with most applications overall
+  const mostActiveStage = PIPELINE_STAGES.reduce((max, stage) =>
+    applicationsByStage[stage].length > (applicationsByStage[max]?.length || 0) ? stage : max
+  , PIPELINE_STAGES[0]);
+
+  // Average days in pipeline (createdAt to now, for non-enrolled apps)
+  const activeApps = applications.filter(a => a.status !== 'enrolled');
+  const avgDaysInPipeline = activeApps.length > 0
+    ? Math.round(
+        activeApps.reduce((sum, a) => {
+          const created = a.createdAt?.toDate?.();
+          if (!created) return sum;
+          const days = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
+          return sum + days;
+        }, 0) / activeApps.length
+      )
+    : 0;
+
+  // Conversion funnel
+  const funnelStages = ['profiling', 'applied', 'offer', 'enrolled'];
+  const funnel = funnelStages.map((stage, idx) => {
+    const count = applicationsByStage[stage]?.length || 0;
+    const prevCount = idx === 0 ? count : (applicationsByStage[funnelStages[idx - 1]]?.length || 0);
+    const pct = idx === 0 || prevCount === 0 ? 100 : Math.round((count / prevCount) * 100);
+    return { stage, count, pct };
+  });
+
   function handleDragStart(e, app) {
     setDraggedApp(app);
     e.dataTransfer.effectAllowed = 'move';
@@ -37,12 +72,23 @@ export default function PipelinePage() {
     e.dataTransfer.dropEffect = 'move';
   }
 
-  function handleDropOnStage(e, targetStage) {
+  async function handleDropOnStage(e, targetStage) {
     e.preventDefault();
     if (!draggedApp || draggedApp.status === targetStage) return;
 
-    // TODO: Update app status in Firestore
-    toast.success(`Moved to ${STAGE_LABELS[targetStage]}`);
+    try {
+      let commission = null;
+      if (targetStage === 'enrolled') {
+        const input = window.prompt('Enter commission amount (₹):');
+        if (input === null) { setDraggedApp(null); return; }
+        commission = parseFloat(input) || 0;
+      }
+      await applicationService.updateStatus(draggedApp.id, targetStage, commission);
+      toast.success(`Moved to ${STAGE_LABELS[targetStage]}`);
+    } catch (err) {
+      console.error('Pipeline update error:', err);
+      toast.error('Failed to update — try again');
+    }
     setDraggedApp(null);
   }
 
@@ -112,7 +158,10 @@ export default function PipelinePage() {
             </div>
 
             {/* Add Button */}
-            <button className="w-full mt-4 p-2 rounded-lg border-2 border-dashed border-slate-300 hover:border-brand-400 text-slate-600 hover:text-brand-600 text-sm font-medium transition-colors">
+            <button
+              onClick={() => window.location.href = '/dashboard/students'}
+              className="w-full mt-4 p-2 rounded-lg border-2 border-dashed border-slate-300 hover:border-brand-400 text-slate-600 hover:text-brand-600 text-sm font-medium transition-colors"
+            >
               <Plus className="w-4 h-4 inline mr-2" />
               Add
             </button>
@@ -126,15 +175,21 @@ export default function PipelinePage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div>
             <p className="text-blue-700 font-medium">Bottleneck</p>
-            <p className="text-blue-900 font-bold">Shortlisting (8 apps stuck)</p>
+            <p className="text-blue-900 font-bold">
+              {bottleneckStage ? `${STAGE_LABELS[bottleneckStage]} (${applicationsByStage[bottleneckStage].length} apps)` : '—'}
+            </p>
           </div>
           <div>
             <p className="text-blue-700 font-medium">Success Rate</p>
-            <p className="text-blue-900 font-bold">67% (40 enrolled / 60 total)</p>
+            <p className="text-blue-900 font-bold">
+              {applications.length > 0
+                ? `${Math.round((applicationsByStage.enrolled.length / applications.length) * 100)}% (${applicationsByStage.enrolled.length} enrolled / ${applications.length} total)`
+                : '—'}
+            </p>
           </div>
           <div>
             <p className="text-blue-700 font-medium">Avg Days in Pipeline</p>
-            <p className="text-blue-900 font-bold">45 days</p>
+            <p className="text-blue-900 font-bold">{avgDaysInPipeline ? `${avgDaysInPipeline} days` : '—'}</p>
           </div>
         </div>
       </div>
@@ -144,10 +199,19 @@ export default function PipelinePage() {
         {/* Most Active Stage */}
         <div className="card p-6">
           <h3 className="font-semibold text-slate-900 mb-4">🔥 Most Active Stage</h3>
-          <p className="text-2xl font-bold text-slate-900 mb-2">Applied</p>
-          <p className="text-slate-600 mb-4">15 applications in this stage</p>
+          <p className="text-2xl font-bold text-slate-900 mb-2">{STAGE_LABELS[mostActiveStage]}</p>
+          <p className="text-slate-600 mb-4">
+            {applicationsByStage[mostActiveStage]?.length || 0} applications in this stage
+          </p>
           <div className="bg-slate-100 rounded-full h-2">
-            <div className="bg-brand-600 h-2 rounded-full w-1/4"></div>
+            <div
+              className="bg-brand-600 h-2 rounded-full"
+              style={{
+                width: applications.length > 0
+                  ? `${Math.round((applicationsByStage[mostActiveStage]?.length / applications.length) * 100)}%`
+                  : '0%'
+              }}
+            ></div>
           </div>
         </div>
 
@@ -155,22 +219,16 @@ export default function PipelinePage() {
         <div className="card p-6">
           <h3 className="font-semibold text-slate-900 mb-4">📈 Conversion Funnel</h3>
           <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">Profiling</span>
-              <span className="font-bold text-slate-900">60</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">→ Applied</span>
-              <span className="font-bold text-slate-900">45 (75%)</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">→ Offer</span>
-              <span className="font-bold text-slate-900">42 (70%)</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-600">→ Enrolled</span>
-              <span className="font-bold text-green-600">40 (67%)</span>
-            </div>
+            {funnel.map((f, idx) => (
+              <div key={f.stage} className="flex justify-between text-sm">
+                <span className="text-slate-600">
+                  {idx === 0 ? '' : '→ '}{STAGE_LABELS[f.stage].replace(/^\S+\s/, '')}
+                </span>
+                <span className={`font-bold ${f.stage === 'enrolled' ? 'text-green-600' : 'text-slate-900'}`}>
+                  {f.count}{idx > 0 ? ` (${f.pct}%)` : ''}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </div>

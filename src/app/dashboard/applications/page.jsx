@@ -1,14 +1,20 @@
 'use client';
 
-import { useApplications } from '@/lib/hooks';
+import { useApplications, useStudents, useCourses } from '@/lib/hooks';
 import { formatDate, getStatusBadge } from '@/lib/utils';
-import { Filter } from 'lucide-react';
+import { Filter, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { APPLICATION_STATUS } from '@/lib/types';
+import toast from 'react-hot-toast';
 
 export default function ApplicationsPage() {
-  const { applications, loading, updateStatus } = useApplications();
+  const { applications, loading, updateStatus, createApplication } = useApplications();
+  const { students } = useStudents();
+  const { courses } = useCourses();
   const [filter, setFilter] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [newApp, setNewApp] = useState({ studentId: '', courseId: '' });
 
   const filteredApps = filter
     ? applications.filter((a) => a.status === filter)
@@ -28,12 +34,45 @@ export default function ApplicationsPage() {
     }
   }
 
+  async function handleCreateApplication(e) {
+    e.preventDefault();
+    if (!newApp.studentId || !newApp.courseId) {
+      toast.error('Select both student and course');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await createApplication({
+        studentId: newApp.studentId,
+        courseId: newApp.courseId,
+        status: 'profiling',
+      });
+      toast.success('Application created!');
+      setNewApp({ studentId: '', courseId: '' });
+      setShowModal(false);
+    } catch (err) {
+      console.error('Create application error:', err);
+      toast.error('Failed to create application');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="page-title">Applications</h1>
-        <p className="page-subtitle">Track and manage student applications</p>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Applications</h1>
+          <p className="page-subtitle">Track and manage student applications</p>
+        </div>
+        <button
+          onClick={() => setShowModal(true)}
+          className="btn-primary flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" />
+          New Application
+        </button>
       </div>
 
       {/* Filter */}
@@ -133,6 +172,73 @@ export default function ApplicationsPage() {
           </table>
         </div>
       </div>
+
+      {/* New Application Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full animate-slide-up">
+            <div className="p-6 border-b border-slate-200">
+              <h2 className="text-xl font-bold text-slate-900">New Application</h2>
+            </div>
+
+            <form onSubmit={handleCreateApplication} className="p-6 space-y-4">
+              <div>
+                <label className="label-field">Student *</label>
+                <select
+                  value={newApp.studentId}
+                  onChange={(e) => setNewApp({ ...newApp, studentId: e.target.value })}
+                  className="input-field"
+                  required
+                >
+                  <option value="">Select a student</option>
+                  {students.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.firstName} {s.lastName} ({s.email})
+                    </option>
+                  ))}
+                </select>
+                {students.length === 0 && (
+                  <p className="text-xs text-slate-500 mt-1">No students yet — add one from Students page first.</p>
+                )}
+              </div>
+
+              <div>
+                <label className="label-field">Course *</label>
+                <select
+                  value={newApp.courseId}
+                  onChange={(e) => setNewApp({ ...newApp, courseId: e.target.value })}
+                  className="input-field"
+                  required
+                >
+                  <option value="">Select a course</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} — {c.universityName} ({c.country})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="btn-primary flex-1"
+                >
+                  {submitting ? 'Creating...' : 'Create Application'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
