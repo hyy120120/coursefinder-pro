@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useCourses } from '@/lib/hooks';
 import { MessageCircle, FileText, CheckCircle, Globe, Zap, Loader } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -322,8 +323,10 @@ function SOPGenerator() {
 
 // ──── ELIGIBILITY CHECKER COMPONENT ────
 function EligibilityChecker() {
+  const { courses } = useCourses();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState('');
+  const [courseSearch, setCourseSearch] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     cgpa: '3.5',
@@ -334,6 +337,13 @@ function EligibilityChecker() {
     university: '',
     course: '',
   });
+
+  const filteredCourses = courses.filter(c =>
+    courseSearch.length < 2 ? false :
+    c.name?.toLowerCase().includes(courseSearch.toLowerCase()) ||
+    c.universityName?.toLowerCase().includes(courseSearch.toLowerCase()) ||
+    c.country?.toLowerCase().includes(courseSearch.toLowerCase())
+  );
 
   async function handleCheck(e) {
     e.preventDefault();
@@ -427,25 +437,47 @@ function EligibilityChecker() {
         </div>
 
         <div>
+          <label className="label-field">Search Course *</label>
+          <input
+            type="text"
+            value={courseSearch}
+            onChange={(e) => {
+              setCourseSearch(e.target.value);
+              setFormData({ ...formData, course: '', university: '' });
+            }}
+            className="input-field"
+            placeholder="Type course name, university, or country..."
+          />
+          {filteredCourses.length > 0 && (
+            <div className="border border-slate-200 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-lg bg-white z-10 relative">
+              {filteredCourses.map(c => (
+                <div
+                  key={c.id}
+                  onClick={() => {
+                    setFormData({ ...formData, course: c.name, university: c.universityName });
+                    setCourseSearch(`${c.name} — ${c.universityName}`);
+                  }}
+                  className="px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0"
+                >
+                  <p className="font-medium text-slate-900 text-sm">{c.name}</p>
+                  <p className="text-xs text-slate-500">{c.universityName} · {c.country} · {c.level}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {courseSearch.length >= 2 && filteredCourses.length === 0 && (
+            <p className="text-xs text-slate-400 mt-1">No courses found — try different keywords</p>
+          )}
+        </div>
+
+        <div>
           <label className="label-field">University *</label>
           <input
             type="text"
             value={formData.university}
             onChange={(e) => setFormData({ ...formData, university: e.target.value })}
             className="input-field"
-            placeholder="MIT, Harvard, etc."
-            required
-          />
-        </div>
-
-        <div>
-          <label className="label-field">Course *</label>
-          <input
-            type="text"
-            value={formData.course}
-            onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-            className="input-field"
-            placeholder="Masters in CS"
+            placeholder="Auto-filled when course selected"
             required
           />
         </div>

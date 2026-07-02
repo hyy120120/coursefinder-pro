@@ -21,14 +21,17 @@ export default function CommissionsPage() {
     .reduce((sum, a) => sum + (a.commission || 0), 0);
 
   // Monthly commission trend
-  const commissionTrend = [
-    { month: 'Jan', earned: 5000, paid: 3500 },
-    { month: 'Feb', earned: 7500, paid: 5250 },
-    { month: 'Mar', earned: 10000, paid: 7000 },
-    { month: 'Apr', earned: 15000, paid: 10500 },
-    { month: 'May', earned: 18000, paid: 12600 },
-    { month: 'Jun', earned: 22500, paid: 15750 },
-  ];
+  const commissionTrend = (() => {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months.map((month, idx) => {
+      const monthEnrolled = enrolledApps.filter(a => {
+        const d = a.updatedAt?.toDate?.();
+        return d && d.getMonth() === idx;
+      });
+      const earned = monthEnrolled.reduce((sum, a) => sum + (a.commission || 0), 0);
+      return { month, earned, paid: Math.round(earned * 0.7) };
+    }).filter(m => m.earned > 0);
+  })();
 
   // Detailed commission breakdown
   const commissionBreakdown = enrolledApps.map((app, idx) => ({
@@ -89,16 +92,16 @@ export default function CommissionsPage() {
         <h2 className="section-title">📊 Commission Structure</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center p-4 bg-slate-50 rounded-lg">
-            <p className="text-slate-600 text-sm mb-2">Gross Commission</p>
-            <p className="text-2xl font-bold text-slate-900">$2,500</p>
-            <p className="text-xs text-slate-500 mt-2">Per enrolled student</p>
+            <p className="text-slate-600 text-sm mb-2">Total Gross Commission</p>
+            <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalCommissionEarned)}</p>
+            <p className="text-xs text-slate-500 mt-2">From {enrolledApps.length} enrolled students</p>
           </div>
           <div className="flex items-center justify-center">
             <div className="text-3xl font-bold text-slate-300">÷</div>
           </div>
           <div className="text-center p-4 bg-green-50 rounded-lg">
-            <p className="text-green-700 font-semibold">Your Share: $1,750 (70%)</p>
-            <p className="text-green-600 text-sm mt-2">Platform Fee: $750 (30%)</p>
+            <p className="text-green-700 font-semibold">Your Share: {formatCurrency(agentShare)} (70%)</p>
+            <p className="text-green-600 text-sm mt-2">Platform Fee: {formatCurrency(platformShare)} (30%)</p>
           </div>
         </div>
       </div>
@@ -184,20 +187,9 @@ export default function CommissionsPage() {
         <div className="card p-6">
           <h3 className="font-semibold text-slate-900 mb-4">🏦 Bank Account</h3>
           <div className="space-y-3 mb-6 text-sm">
-            <div>
-              <p className="text-slate-600">Account Holder</p>
-              <p className="font-semibold text-slate-900">Your Name</p>
-            </div>
-            <div>
-              <p className="text-slate-600">Account Number</p>
-              <p className="font-semibold text-slate-900">**** **** **** 1234</p>
-            </div>
-            <div>
-              <p className="text-slate-600">Bank</p>
-              <p className="font-semibold text-slate-900">Your Bank Name</p>
-            </div>
+            <p className="text-slate-500">Bank details not configured yet. Add your bank details to receive payouts.</p>
           </div>
-          <button className="btn-secondary w-full">Update Bank Details</button>
+          <button className="btn-secondary w-full" disabled>Update Bank Details — Coming Soon</button>
         </div>
       </div>
 
